@@ -1,7 +1,7 @@
 let ws;
 let currentUsername = '';
 let roomHistory = [];
-let currentRoom = '';
+let currentRoom = 'general';
 let typingUsers = {};
 let typingTimeout;
 const logEl = document.getElementById('log');
@@ -12,10 +12,10 @@ function log(t) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-  function updateTypingStatus() {
-    const typingList = Object.keys(typingUsers).filter(user => typingUsers[user] && user !== currentUsername);
-    typingStatusEl.textContent = typingList.length > 0 ? typingList.join(', ') + ' is typing...' : '';
-  }
+function updateTypingStatus() {
+  const typingList = Object.keys(typingUsers).filter(user => typingUsers[user] && user !== currentUsername);
+  typingStatusEl.textContent = typingList.length > 0 ? typingList.join(', ') + ' is typing...' : '';
+}
 
 function updateRoomHistory() {
   const historyDiv = document.getElementById('roomHistory');
@@ -24,19 +24,12 @@ function updateRoomHistory() {
     const btn = document.createElement('button');
     btn.className = 'room-btn' + (room === currentRoom ? ' active' : '');
     btn.textContent = room;
-    btn.onclick = () => {
-        clearTimeout(typingTimeout);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
-        }
-        if (ws) ws.close();
-        connect(room, currentUsername);
-      };
+    btn.onclick = () => switchRoomSafely(room);
     historyDiv.appendChild(btn);
   });
 }
 
-function switchRoomSafely(room, name) {
+function switchRoomSafely(room) {
     clearTimeout(typingTimeout);
     typingUsers = {};
 
@@ -45,38 +38,54 @@ function switchRoomSafely(room, name) {
       ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
       setTimeout(() => {
         if (ws) ws.close();
-        connect(room, name);
+        currentRoom = room;
+        connect();
       }, 50);
     } else {
-      connect(room, name);
+      currentRoom = room;
+      connect();
     }
   }
 
-function connect(room, name) {
-  currentRoom = room;
-  typingUsers = {};
-  if (!roomHistory.includes(room)) {
-    roomHistory.push(room);
-  }
-  updateRoomHistory();
+async function fetchMe() {
+    const response = await fetch("/me");
+    if (response.ok) {
+        const data = await response.json();
+        currentUsername = data.username;
+        document.getElementById('currentName').textContent = currentUsername;
+    } else {
+        window.location.href = "/signin";
+    }
+}
 
-  const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-  ws = new WebSocket(protocol + location.host + '/ws/' + encodeURIComponent(room) + '/' + encodeURIComponent(name));
+async function connect() {
+    await fetchMe();
+
+    if (!token) {
+        window.location.href = "/signin";
+        return;
+    }
+
+    if (!roomHistory.includes(currentRoom)) {
+        roomHistory.push(currentRoom);
+    }
+    updateRoomHistory();
+
+    const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const wsUrl = `${protocol}${location.host}/ws/${encodeURIComponent(currentRoom)}?token=${token}`;
+    ws = new WebSocket(wsUrl);
 
   ws.addEventListener('open', () => {
-    document.getElementById('joinBox').style.display = 'none';
-    document.getElementById('switchRoomBox').style.display = 'none';
-    document.getElementById('chatBox').style.display = 'block';
+    log(`Connected to room: ${currentRoom}`);
     document.getElementById('sidebar').style.display = 'block';
-    log('Connected to room: ' + room + ' as ' + name);
+    document.getElementById('chatBox').style.display = 'block';
+    document.getElementById('switchRoomBox').style.display = 'none';
   });
 
   ws.addEventListener('message', (e) => {
     try {
       const obj = JSON.parse(e.data);
-      console.log('Received message:', obj);
       if (obj.type === 'history') {
-        console.log('Displaying history:', obj.messages);
         logEl.textContent = '';
         obj.messages.forEach(msg => {
             log((msg.user || 'unknown') + ': ' + (msg.msg || ''));
@@ -88,7 +97,8 @@ function connect(room, name) {
         typingUsers[obj.user] = obj.status;
         updateTypingStatus();
       }
-    } catch {
+    } catch (err){
+        console.error("Error parsing message:", err);
       log('Server: ' + e.data);
     }
   });
@@ -97,51 +107,15 @@ function connect(room, name) {
   ws.addEventListener('error', (ev) => log('WebSocket error'));
 }
 
-document.getElementById('join').onclick = () => {
-  const room = (document.getElementById('room').value || 'general').trim();
-  const name = (document.getElementById('name').value || 'anonymous').trim();
-  localStorage.setItem('username', name);
-  localStorage.setItem('room', room);
-  currentUsername = name;
-  connect(room, name);
-};
-
-  document.getElementById('newChatBtn').onclick = () => {
-    clearTimeout(typingTimeout);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
-      setTimeout(() => {
-        if (ws) ws.close();
-        document.getElementById('chatBox').style.display = 'none';
-        document.getElementById('switchRoomBox').style.display = 'block';
-        document.getElementById('currentName').textContent = currentUsername;
-        document.getElementById('newRoom').value = 'general';
-        logEl.textContent = '';
-      }, 50);
-    }
-  };
-
-document.getElementById('switchBtn').onclick = () => {
-    const newRoom = (document.getElementById('newRoom').value || 'general').trim();
-    switchRoomSafely(newRoom, currentUsername);
-  };
-
 document.getElementById('send').onclick = () => {
     const input = document.getElementById('msg');
     if (!ws || ws.readyState !== WebSocket.OPEN) { log('Socket not open'); return; }
     const text = input.value.trim();
     if (!text) return;
 
-    // Send stop-typing first
-    ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
-    clearTimeout(typingTimeout);
-
-    // Then send the chat message
-    ws.send(JSON.stringify({ type: 'chat', user: currentUsername, msg: text }));
+    ws.send(JSON.stringify({ type: 'chat', msg: text }));
     input.value = '';
-    typingUsers[currentUsername] = false;
-    updateTypingStatus();
-  };
+};
 
 document.getElementById('msg').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -149,33 +123,30 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
     } else {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       clearTimeout(typingTimeout);
-      ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: true }));
+      ws.send(JSON.stringify({ type: 'typing', status: true }));
       typingTimeout = setTimeout(() => {
-        ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
+        ws.send(JSON.stringify({ type: 'typing', status: false }));
       }, 1000);
     }
   });
 
-function checkForSession() {
-    const name = localStorage.getItem('username');
-    const room = localStorage.getItem('room');
-    if (name && room) {
-        currentUsername = name;
-        connect(room, name);
-    }
-}
-
-window.addEventListener('load', checkForSession);
-
 document.getElementById('logoutBtn').onclick = () => {
-    localStorage.removeItem('username');
-    localStorage.removeItem('room');
+    document.cookie = "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
     if (ws) {
         ws.close();
     }
-    document.getElementById('joinBox').style.display = 'block';
-    document.getElementById('switchRoomBox').style.display = 'none';
-    document.getElementById('chatBox').style.display = 'none';
-    document.getElementById('sidebar').style.display = 'none';
-    logEl.textContent = '';
+    window.location.href = "/signin";
 };
+
+document.getElementById('newChatBtn').addEventListener('click', () => {
+    document.getElementById('chatBox').style.display = 'none';
+    document.getElementById('switchRoomBox').style.display = 'block';
+});
+
+document.getElementById('switchBtn').onclick = () => {
+    const newRoom = (document.getElementById('newRoom').value || 'general').trim();
+    switchRoomSafely(newRoom);
+  };
+
+
+window.addEventListener('load', connect);

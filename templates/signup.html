@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sign Up</title>
+    <style>
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; }
+      .container { max-width: 400px; margin: 0 auto; }
+      input { display: block; width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
+      button { padding: 0.5rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h3>Sign Up</h3>
+      <input id="username" placeholder="Username" />
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="signupBtn">Sign Up</button>
+      <p>Already have an account? <a href="/signin">Sign In</a></p>
+    </div>
+    <script src="/static/auth.js"></script>
+  </body>
+</html>
