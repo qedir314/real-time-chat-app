@@ -9,6 +9,7 @@
       #mainContent { flex: 1; }
       #chatBox { margin-top: 1rem; }
       #log { white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; border-radius: 6px; max-height: 40vh; overflow:auto; }
+      #typingStatus { font-style: italic; color: #666; font-size: 0.9rem; margin-top: 0.5rem; min-height: 1.2rem; }
       input { padding: 0.4rem; margin-right: 0.5rem; }
       button { padding: 0.45rem 0.7rem; }
       #newChatBtn { background-color: #ff6b6b; color: white; }
@@ -47,6 +48,7 @@
           <button id="newChatBtn">Create New Chat</button>
         </div>
         <pre id="log"></pre>
+        <div id="typingStatus"></div>
       </div>
     </div>
 
@@ -55,11 +57,19 @@
       let currentUsername = '';
       let roomHistory = [];
       let currentRoom = '';
+      let typingUsers = {};
+      let typingTimeout;
       const logEl = document.getElementById('log');
+      const typingStatusEl = document.getElementById('typingStatus');
 
       function log(t) {
         logEl.textContent += t + '\n';
         logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function updateTypingStatus() {
+        const typingList = Object.keys(typingUsers).filter(user => typingUsers[user]);
+        typingStatusEl.textContent = typingList.length > 0 ? typingList.join(', ') + ' is typing...' : '';
       }
 
       function updateRoomHistory() {
@@ -79,6 +89,7 @@
 
       function connect(room, name) {
         currentRoom = room;
+        typingUsers = {};
         if (!roomHistory.includes(room)) {
           roomHistory.push(room);
         }
@@ -99,7 +110,12 @@
         ws.addEventListener('message', (e) => {
           try {
             const obj = JSON.parse(e.data);
-            log((obj.user || 'unknown') + ': ' + (obj.message || ''));
+            if (obj.type === 'chat') {
+              log((obj.user || 'unknown') + ': ' + (obj.msg || ''));
+            } else if (obj.type === 'typing') {
+              typingUsers[obj.user] = obj.status;
+              updateTypingStatus();
+            }
           } catch {
             log('Server: ' + e.data);
           }
@@ -135,12 +151,23 @@
         if (!ws || ws.readyState !== WebSocket.OPEN) { log('Socket not open'); return; }
         const text = input.value.trim();
         if (!text) return;
-        ws.send(text);
+        ws.send(JSON.stringify({ type: 'chat', user: currentUsername, msg: text }));
         input.value = '';
+        typingUsers[currentUsername] = false;
+        updateTypingStatus();
       };
 
       document.getElementById('msg').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') document.getElementById('send').click();
+        if (e.key === 'Enter') {
+          document.getElementById('send').click();
+        } else {
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+          clearTimeout(typingTimeout);
+          ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: true }));
+          typingTimeout = setTimeout(() => {
+            ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
+          }, 3000);
+        }
       });
     </script>
   </body>
