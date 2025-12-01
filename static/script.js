@@ -123,9 +123,9 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
     } else {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       clearTimeout(typingTimeout);
-      ws.send(JSON.stringify({ type: 'typing', status: true }));
+      ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: true }));
       typingTimeout = setTimeout(() => {
-        ws.send(JSON.stringify({ type: 'typing', status: false }));
+        ws.send(JSON.stringify({ type: 'typing', user: currentUsername, status: false }));
       }, 1000);
     }
   });
