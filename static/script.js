@@ -68,14 +68,21 @@ function connect(room, name) {
     document.getElementById('switchRoomBox').style.display = 'none';
     document.getElementById('chatBox').style.display = 'block';
     document.getElementById('sidebar').style.display = 'block';
-    logEl.textContent = '';
     log('Connected to room: ' + room + ' as ' + name);
   });
 
   ws.addEventListener('message', (e) => {
     try {
       const obj = JSON.parse(e.data);
-      if (obj.type === 'chat') {
+      console.log('Received message:', obj);
+      if (obj.type === 'history') {
+        console.log('Displaying history:', obj.messages);
+        logEl.textContent = '';
+        obj.messages.forEach(msg => {
+            log((msg.user || 'unknown') + ': ' + (msg.msg || ''));
+        });
+      }
+      else if (obj.type === 'chat') {
         log((obj.user || 'unknown') + ': ' + (obj.msg || ''));
       } else if (obj.type === 'typing') {
         typingUsers[obj.user] = obj.status;
@@ -93,21 +100,11 @@ function connect(room, name) {
 document.getElementById('join').onclick = () => {
   const room = (document.getElementById('room').value || 'general').trim();
   const name = (document.getElementById('name').value || 'anonymous').trim();
+  localStorage.setItem('username', name);
+  localStorage.setItem('room', room);
   currentUsername = name;
   connect(room, name);
 };
-
-function updateRoomHistory() {
-    const historyDiv = document.getElementById('roomHistory');
-    historyDiv.innerHTML = '';
-    roomHistory.forEach(room => {
-      const btn = document.createElement('button');
-      btn.className = 'room-btn' + (room === currentRoom ? ' active' : '');
-      btn.textContent = room;
-      btn.onclick = () => switchRoomSafely(room, currentUsername);
-      historyDiv.appendChild(btn);
-    });
-  }
 
   document.getElementById('newChatBtn').onclick = () => {
     clearTimeout(typingTimeout);
@@ -158,3 +155,27 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
       }, 1000);
     }
   });
+
+function checkForSession() {
+    const name = localStorage.getItem('username');
+    const room = localStorage.getItem('room');
+    if (name && room) {
+        currentUsername = name;
+        connect(room, name);
+    }
+}
+
+window.addEventListener('load', checkForSession);
+
+document.getElementById('logoutBtn').onclick = () => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('room');
+    if (ws) {
+        ws.close();
+    }
+    document.getElementById('joinBox').style.display = 'block';
+    document.getElementById('switchRoomBox').style.display = 'none';
+    document.getElementById('chatBox').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'none';
+    logEl.textContent = '';
+};
