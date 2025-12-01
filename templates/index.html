@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Real-Time Chat</title>
+    <style>
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; }
+      #room { margin-top: 1rem; }
+      #log { white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; border-radius: 6px; max-height: 40vh; overflow:auto; }
+      input { padding: 0.4rem; margin-right: 0.5rem; }
+      button { padding: 0.45rem 0.7rem; }
+    </style>
+  </head>
+  <body>
+    <h3>Real-Time Chat</h3>
+
+    <div id="joinBox">
+      <input id="name" placeholder="Your name" />
+      <button id="join">Join</button>
+    </div>
+
+    <div id="room" style="display:none">
+      <div style="margin-bottom:0.5rem;">
+        <input id="msg" placeholder="Type message" style="width:60%;" />
+        <button id="send">Send</button>
+      </div>
+      <pre id="log"></pre>
+    </div>
+
+    <script>
+      let ws;
+      const logEl = document.getElementById('log');
+
+      function log(t) {
+        logEl.textContent += t + '\n';
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      document.getElementById('join').onclick = () => {
+        const name = (document.getElementById('name').value || 'anonymous').trim();
+        const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+        ws = new WebSocket(protocol + location.host + '/ws/' + encodeURIComponent(name));
+
+        ws.addEventListener('open', () => {
+          document.getElementById('room').style.display = 'block';
+          document.getElementById('joinBox').style.display = 'none';
+          log('Connected as ' + name);
+        });
+
+        ws.addEventListener('message', (e) => {
+          try {
+            const obj = JSON.parse(e.data);
+            log((obj.user || 'unknown') + ': ' + (obj.message || ''));
+          } catch {
+            log('Server: ' + e.data);
+          }
+        });
+
+        ws.addEventListener('close', () => log('Disconnected'));
+        ws.addEventListener('error', (ev) => log('WebSocket error'));
+      };
+
+      document.getElementById('send').onclick = () => {
+        const input = document.getElementById('msg');
+        if (!ws || ws.readyState !== WebSocket.OPEN) { log('Socket not open'); return; }
+        const text = input.value.trim();
+        if (!text) return;
+        ws.send(text);
+        input.value = '';
+      };
+
+      // send message on Enter
+      document.getElementById('msg').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('send').click();
+      });
+    </script>
+  </body>
+</html>
