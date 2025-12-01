@@ -58,8 +58,32 @@ async function fetchMe() {
     }
 }
 
+async function fetchAllRooms() {
+    try {
+        const response = await fetch("/rooms");
+        if (response.ok) {
+            const data = await response.json();
+            roomHistory = data.rooms || ['general'];
+            updateRoomHistory();
+        }
+    } catch (err) {
+        console.error("Error fetching rooms:", err);
+        roomHistory = ['general'];
+        updateRoomHistory();
+    }
+}
+
 async function connect() {
     await fetchMe();
+
+    if (!currentUsername) {
+        window.location.href = "/signin";
+        return;
+    }
+
+    // Fetch all available rooms first
+    await fetchAllRooms();
+
 
     if (!token) {
         window.location.href = "/signin";
@@ -68,8 +92,8 @@ async function connect() {
 
     if (!roomHistory.includes(currentRoom)) {
         roomHistory.push(currentRoom);
+        updateRoomHistory();
     }
-    updateRoomHistory();
 
     const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     const wsUrl = `${protocol}${location.host}/ws/${encodeURIComponent(currentRoom)}?token=${token}`;

@@ -1,12 +1,12 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-
-from utils.ConnectionManager import ConnectionManager
-from config.database import messages_collection
-from auth.core import get_user_from_token
 import json
 from datetime import datetime
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Request, HTTPException
+from fastapi.templating import Jinja2Templates
+
+from auth.core import get_user_from_token
+from config.database import messages_collection
+from utils.ConnectionManager import ConnectionManager
 
 router = APIRouter()
 manager = ConnectionManager()
@@ -40,7 +40,7 @@ async def get_chat_history(room_id: str):
 
 @router.websocket("/ws/{room_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, room_id: str, token: str = Query(...)
+        websocket: WebSocket, room_id: str, token: str = Query(...)
 ):
     user = await get_user_from_token(token)
     if not user:
@@ -81,3 +81,43 @@ async def websocket_endpoint(
         await manager.broadcast_json(
             {"type": "chat", "user": "system", "msg": f"{username} left"}, room_id
         )
+
+
+@router.get("/rooms")
+async def get_rooms(request: Request):
+    token = request.cookies.get("access_token")
+    print(f"Token from cookies: {token}")
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Remove "Bearer " prefix if present
+    if token.startswith("Bearer "):
+        token = token[7:]
+
+    try:
+        user = await get_user_from_token(token)
+        print(f"User from token: {user}")
+
+        if user:
+            # Get all unique room IDs from messages - synchronous operation
+            messages = list(messages_collection.find({}, {"room_id": 1}))
+            rooms = list(set(msg.get("room_id") for msg in messages if msg.get("room_id")))
+
+            # Ensure 'general' is always included
+            if not rooms:
+                rooms = ["general"]
+            elif "general" not in rooms:
+                rooms.insert(0, "general")
+
+            print(f"Returning rooms: {rooms}")
+            return {"rooms": rooms}
+        else:
+            raise HTTPException(status_code=401, detail="User not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching rooms: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=401, detail="Invalid token")

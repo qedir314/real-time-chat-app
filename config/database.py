@@ -11,6 +11,7 @@ client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 messages_collection = db["messages"]
 users_collection = db["users"]
+rooms = db.messages_collection.distinct("room_id")
 
 # Create index for efficient queries
 messages_collection.create_index([("room_id", 1), ("timestamp", -1)])
