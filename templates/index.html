@@ -5,30 +5,40 @@
     <title>Real-Time Chat</title>
     <style>
       body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; }
-      #room { margin-top: 1rem; }
+      #chatBox { margin-top: 1rem; }
       #log { white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; border-radius: 6px; max-height: 40vh; overflow:auto; }
       input { padding: 0.4rem; margin-right: 0.5rem; }
       button { padding: 0.45rem 0.7rem; }
+      #newChatBtn { background-color: #ff6b6b; color: white; }
     </style>
   </head>
   <body>
     <h3>Real-Time Chat</h3>
 
     <div id="joinBox">
+      <input id="room" placeholder="Room name (e.g., general)" value="general" />
       <input id="name" placeholder="Your name" />
       <button id="join">Join</button>
     </div>
 
-    <div id="room" style="display:none">
+    <div id="switchRoomBox" style="display:none">
+      <span>Logged in as: <strong id="currentName"></strong></span><br><br>
+      <input id="newRoom" placeholder="Room name" value="general" />
+      <button id="switchBtn">Switch Room</button>
+    </div>
+
+    <div id="chatBox" style="display:none">
       <div style="margin-bottom:0.5rem;">
         <input id="msg" placeholder="Type message" style="width:60%;" />
         <button id="send">Send</button>
+        <button id="newChatBtn">Create New Chat</button>
       </div>
       <pre id="log"></pre>
     </div>
 
     <script>
       let ws;
+      let currentUsername = '';
       const logEl = document.getElementById('log');
 
       function log(t) {
@@ -36,15 +46,16 @@
         logEl.scrollTop = logEl.scrollHeight;
       }
 
-      document.getElementById('join').onclick = () => {
-        const name = (document.getElementById('name').value || 'anonymous').trim();
+      function connect(room, name) {
         const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-        ws = new WebSocket(protocol + location.host + '/ws/' + encodeURIComponent(name));
+        ws = new WebSocket(protocol + location.host + '/ws/' + encodeURIComponent(room) + '/' + encodeURIComponent(name));
 
         ws.addEventListener('open', () => {
-          document.getElementById('room').style.display = 'block';
           document.getElementById('joinBox').style.display = 'none';
-          log('Connected as ' + name);
+          document.getElementById('switchRoomBox').style.display = 'none';
+          document.getElementById('chatBox').style.display = 'block';
+          logEl.textContent = '';
+          log('Connected to room: ' + room + ' as ' + name);
         });
 
         ws.addEventListener('message', (e) => {
@@ -58,6 +69,27 @@
 
         ws.addEventListener('close', () => log('Disconnected'));
         ws.addEventListener('error', (ev) => log('WebSocket error'));
+      }
+
+      document.getElementById('join').onclick = () => {
+        const room = (document.getElementById('room').value || 'general').trim();
+        const name = (document.getElementById('name').value || 'anonymous').trim();
+        currentUsername = name;
+        connect(room, name);
+      };
+
+      document.getElementById('newChatBtn').onclick = () => {
+        if (ws) ws.close();
+        document.getElementById('chatBox').style.display = 'none';
+        document.getElementById('switchRoomBox').style.display = 'block';
+        document.getElementById('currentName').textContent = currentUsername;
+        document.getElementById('newRoom').value = 'general';
+        logEl.textContent = '';
+      };
+
+      document.getElementById('switchBtn').onclick = () => {
+        const newRoom = (document.getElementById('newRoom').value || 'general').trim();
+        connect(newRoom, currentUsername);
       };
 
       document.getElementById('send').onclick = () => {
@@ -69,7 +101,6 @@
         input.value = '';
       };
 
-      // send message on Enter
       document.getElementById('msg').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') document.getElementById('send').click();
       });
