@@ -41,7 +41,6 @@ async def websocket_default_room(websocket: WebSocket, username: str):
 
 @app.websocket("/ws/{room_id}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
-    # accept and register socket into specified room
     await manager.connect(websocket, room_id)
     await manager.broadcast_json({"user": "system", "message": f"{username} joined"}, room_id)
     try:
@@ -56,11 +55,32 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
             except json.JSONDecodeError:
                 await manager.broadcast_json({"user": username, "message": text}, room_id)
     except WebSocketDisconnect:
-        # remove from the known room and announce leave
+        await manager.broadcast_json({"user": "system", "message": f"{username} left the room"}, room_id)
         await manager.disconnect(websocket, room_id)
-        await manager.broadcast_json({"user": "system", "message": f"{username} left"}, room_id)
     except Exception:
-        # best-effort cleanup on unexpected errors
+        await manager.disconnect(websocket, room_id)
+
+
+@app.websocket("/ws/{username}")
+async def websocket_default_room(websocket: WebSocket, username: str):
+    room_id = "general"
+    await manager.connect(websocket, room_id)
+    await manager.broadcast_json({"user": "system", "message": f"{username} joined"}, room_id)
+    try:
+        while True:
+            text = await websocket.receive_text()
+            try:
+                data = json.loads(text)
+                if data.get("type") == "chat":
+                    await manager.broadcast_json({"type": "chat", "user": data.get("user"), "msg": data.get("msg")}, room_id)
+                elif data.get("type") == "typing":
+                    await manager.broadcast_json({"type": "typing", "user": data.get("user"), "status": data.get("status")}, room_id)
+            except json.JSONDecodeError:
+                await manager.broadcast_json({"user": username, "message": text}, room_id)
+    except WebSocketDisconnect:
+        await manager.broadcast_json({"user": "system", "message": f"{username} left the room"}, room_id)
+        await manager.disconnect(websocket, room_id)
+    except Exception:
         await manager.disconnect(websocket, room_id)
 
 
