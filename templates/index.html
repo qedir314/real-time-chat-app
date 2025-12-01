@@ -4,41 +4,57 @@
     <meta charset="utf-8" />
     <title>Real-Time Chat</title>
     <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; }
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; display: flex; gap: 1rem; }
+      #sidebar { width: 200px; border-right: 1px solid #ddd; padding-right: 1rem; }
+      #mainContent { flex: 1; }
       #chatBox { margin-top: 1rem; }
       #log { white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; border-radius: 6px; max-height: 40vh; overflow:auto; }
       input { padding: 0.4rem; margin-right: 0.5rem; }
       button { padding: 0.45rem 0.7rem; }
       #newChatBtn { background-color: #ff6b6b; color: white; }
+      .room-btn { display: block; width: 100%; text-align: left; padding: 0.5rem; margin: 0.25rem 0; background: #e9ecef; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; }
+      .room-btn:hover { background: #dee2e6; }
+      .room-btn.active { background: #007bff; color: white; }
+      #roomHistory { margin-top: 1rem; }
+      .room-history-label { font-weight: bold; margin-bottom: 0.5rem; }
     </style>
   </head>
   <body>
-    <h3>Real-Time Chat</h3>
-
-    <div id="joinBox">
-      <input id="room" placeholder="Room name (e.g., general)" value="general" />
-      <input id="name" placeholder="Your name" />
-      <button id="join">Join</button>
+    <div id="sidebar" style="display:none">
+      <div class="room-history-label">Previous Chats</div>
+      <div id="roomHistory"></div>
     </div>
 
-    <div id="switchRoomBox" style="display:none">
-      <span>Logged in as: <strong id="currentName"></strong></span><br><br>
-      <input id="newRoom" placeholder="Room name" value="general" />
-      <button id="switchBtn">Switch Room</button>
-    </div>
+    <div id="mainContent">
+      <h3>Real-Time Chat</h3>
 
-    <div id="chatBox" style="display:none">
-      <div style="margin-bottom:0.5rem;">
-        <input id="msg" placeholder="Type message" style="width:60%;" />
-        <button id="send">Send</button>
-        <button id="newChatBtn">Create New Chat</button>
+      <div id="joinBox">
+        <input id="room" placeholder="Room name (e.g., general)" value="general" />
+        <input id="name" placeholder="Your name" />
+        <button id="join">Join</button>
       </div>
-      <pre id="log"></pre>
+
+      <div id="switchRoomBox" style="display:none">
+        <span>Logged in as: <strong id="currentName"></strong></span><br><br>
+        <input id="newRoom" placeholder="Room name" value="general" />
+        <button id="switchBtn">Switch Room</button>
+      </div>
+
+      <div id="chatBox" style="display:none">
+        <div style="margin-bottom:0.5rem;">
+          <input id="msg" placeholder="Type message" style="width:60%;" />
+          <button id="send">Send</button>
+          <button id="newChatBtn">Create New Chat</button>
+        </div>
+        <pre id="log"></pre>
+      </div>
     </div>
 
     <script>
       let ws;
       let currentUsername = '';
+      let roomHistory = [];
+      let currentRoom = '';
       const logEl = document.getElementById('log');
 
       function log(t) {
@@ -46,7 +62,28 @@
         logEl.scrollTop = logEl.scrollHeight;
       }
 
+      function updateRoomHistory() {
+        const historyDiv = document.getElementById('roomHistory');
+        historyDiv.innerHTML = '';
+        roomHistory.forEach(room => {
+          const btn = document.createElement('button');
+          btn.className = 'room-btn' + (room === currentRoom ? ' active' : '');
+          btn.textContent = room;
+          btn.onclick = () => {
+            if (ws) ws.close();
+            connect(room, currentUsername);
+          };
+          historyDiv.appendChild(btn);
+        });
+      }
+
       function connect(room, name) {
+        currentRoom = room;
+        if (!roomHistory.includes(room)) {
+          roomHistory.push(room);
+        }
+        updateRoomHistory();
+
         const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
         ws = new WebSocket(protocol + location.host + '/ws/' + encodeURIComponent(room) + '/' + encodeURIComponent(name));
 
@@ -54,6 +91,7 @@
           document.getElementById('joinBox').style.display = 'none';
           document.getElementById('switchRoomBox').style.display = 'none';
           document.getElementById('chatBox').style.display = 'block';
+          document.getElementById('sidebar').style.display = 'block';
           logEl.textContent = '';
           log('Connected to room: ' + room + ' as ' + name);
         });
