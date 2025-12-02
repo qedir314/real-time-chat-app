@@ -4,8 +4,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from pymongo.errors import DuplicateKeyError
 
-from models.user import User, UserInDB
-from auth.core import get_password_hash, verify_password, create_access_token, get_current_active_user, get_user_from_token
+from models.user import User
+from auth.core import get_password_hash, verify_password, create_access_token, get_user_from_token
 from config.database import users_collection
 
 router = APIRouter()
@@ -20,9 +20,11 @@ async def signup_page(request: Request):
 @router.post("/signup")
 async def signup(user: User):
     hashed_password = get_password_hash(user.password)
-    user_in_db = UserInDB(**user.dict(), hashed_password=hashed_password)
+    user_dict = user.model_dump()
+    user_dict.pop("password")  # Remove plain password
+    user_dict["hashed_password"] = hashed_password
     try:
-        users_collection.insert_one(user_in_db.dict())
+        users_collection.insert_one(user_dict)
     except DuplicateKeyError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
