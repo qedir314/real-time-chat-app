@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Request, HTTPException
 from fastapi.templating import Jinja2Templates
@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from auth.core import get_user_from_token
 from config.database import messages_collection
 from utils.ConnectionManager import ConnectionManager
+from utils.chatbot import ai_bot
 
 router = APIRouter()
 manager = ConnectionManager()
@@ -16,7 +17,7 @@ templates = Jinja2Templates(directory="templates")
 async def save_message(room_id: str, user: str, msg: str):
     """Save message to database"""
     messages_collection.insert_one(
-        {"room_id": room_id, "user": user, "msg": msg, "timestamp": datetime.utcnow()}
+        {"room_id": room_id, "user": user, "msg": msg, "timestamp": datetime.now(UTC)}
     )
 
 
@@ -60,11 +61,43 @@ async def websocket_endpoint(
             try:
                 data = json.loads(text)
                 if data.get("type") == "chat":
-                    await save_message(room_id, username, data.get("msg"))
+                    message_text = data.get("msg", "")
+                    await save_message(room_id, username, message_text)
                     await manager.broadcast_json(
-                        {"type": "chat", "user": username, "msg": data.get("msg")},
+                        {"type": "chat", "user": username, "msg": message_text},
                         room_id,
                     )
+
+                    # Check if AI bot should respond
+                    if ai_bot.should_respond(message_text):
+                        print(f"Bot triggered by message: '{message_text}'")
+                        # Send typing indicator for bot
+                        await manager.broadcast_json(
+                            {"type": "typing", "user": "AI_Bot", "status": True},
+                            room_id,
+                        )
+
+                        # Get AI response
+                        bot_response = await ai_bot.get_response(message_text, username)
+                        print(f"Bot response received: {bot_response}")
+
+                        # Stop typing indicator
+                        await manager.broadcast_json(
+                            {"type": "typing", "user": "AI_Bot", "status": False},
+                            room_id,
+                        )
+
+                        if bot_response:
+                            print(f"Broadcasting bot response to room {room_id}")
+                            # Save and broadcast bot response
+                            await save_message(room_id, "AI_Bot", bot_response)
+                            await manager.broadcast_json(
+                                {"type": "chat", "user": "AI_Bot", "msg": bot_response},
+                                room_id,
+                            )
+                        else:
+                            print("Bot response was None or empty, not broadcasting")
+
                 elif data.get("type") == "typing":
                     await manager.broadcast_json(
                         {

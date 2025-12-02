@@ -18,6 +18,7 @@
       .room-btn.active { background: #007bff; color: white; }
       #roomHistory { margin-top: 1rem; }
       .room-history-label { font-weight: bold; margin-bottom: 0.5rem; }
+      code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
     </style>
   </head>
   <body>
@@ -30,14 +31,15 @@
       <h3>Real-Time Chat</h3>
 
       <div id="switchRoomBox" style="display:none">
-        <span>Logged in as: <strong id="currentName"></strong></span><br><br>
+        <span>Logged in as: <strong id="currentName"></strong></span><br>
+        <small style="color: #666;">💡 Tip: Use <code>/bot question</code> or <code>@ai question</code> to ask the AI assistant</small><br><br>
         <input id="newRoom" placeholder="Room name" value="general" />
         <button id="switchBtn">Switch Room</button>
       </div>
 
       <div id="chatBox">
         <div style="margin-bottom:0.5rem;">
-          <input id="msg" placeholder="Type message" style="width:60%;" />
+          <input id="msg" placeholder="Type message (try: /bot hello)" style="width:60%;" />
           <button id="send">Send</button>
           <button id="newChatBtn">Create New Chat</button>
           <button id="logoutBtn">Logout</button>

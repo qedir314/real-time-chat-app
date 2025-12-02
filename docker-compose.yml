@@ -16,6 +16,7 @@ services:
       - "8000:8000"
     environment:
       MONGO_URI: ${MONGO_URI}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     depends_on:
       - mongodb
 

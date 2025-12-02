@@ -7,8 +7,21 @@ let typingTimeout;
 const logEl = document.getElementById('log');
 const typingStatusEl = document.getElementById('typingStatus');
 
-function log(t) {
-  logEl.textContent += t + '\n';
+function log(t, isBot = false) {
+  if (isBot) {
+    // Create a styled element for bot messages
+    const botMsg = document.createElement('div');
+    botMsg.style.cssText = 'background: #e3f2fd; padding: 8px; margin: 4px 0; border-left: 3px solid #2196f3; border-radius: 4px;';
+    botMsg.textContent = t;
+
+    // Append to a container if log is a pre element
+    const container = logEl.parentElement;
+    if (logEl.tagName === 'PRE') {
+      logEl.textContent += t + '\n';
+    }
+  } else {
+    logEl.textContent += t + '\n';
+  }
   logEl.scrollTop = logEl.scrollHeight;
 }
 
@@ -112,11 +125,15 @@ async function connect() {
       if (obj.type === 'history') {
         logEl.textContent = '';
         obj.messages.forEach(msg => {
-            log((msg.user || 'unknown') + ': ' + (msg.msg || ''));
+            const isBot = msg.user === 'AI_Bot';
+            const msgText = (msg.user || 'unknown') + ': ' + (msg.msg || '');
+            log(msgText, isBot);
         });
       }
       else if (obj.type === 'chat') {
-        log((obj.user || 'unknown') + ': ' + (obj.msg || ''));
+        const isBot = obj.user === 'AI_Bot';
+        const msgText = (obj.user || 'unknown') + ': ' + (obj.msg || '');
+        log(msgText, isBot);
       } else if (obj.type === 'typing') {
         typingUsers[obj.user] = obj.status;
         updateTypingStatus();
