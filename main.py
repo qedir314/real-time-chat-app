@@ -3,11 +3,23 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from contextlib import asynccontextmanager
 
 from auth.core import get_user_from_token
 from routes import auth, chat
+from routes.chat import manager
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize Redis
+    print("🚀 Starting up...")
+    await manager.initialize_redis()
+    yield
+    # Shutdown: Cleanup Redis
+    print("🛑 Shutting down...")
+    await manager.shutdown()
+
+app = FastAPI(lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")

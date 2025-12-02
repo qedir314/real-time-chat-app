@@ -10,15 +10,27 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
   chat-app:
     build: .
     ports:
       - "8000:8000"
     environment:
       MONGO_URI: ${MONGO_URI}
+      SECRET_KEY: ${SECRET_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      REDIS_URL: redis://redis:6379
     depends_on:
       - mongodb
+      - redis
 
 volumes:
   mongo_data:
+  redis_data:
