@@ -1,57 +1,60 @@
 <!doctype html>
-<html>
-  <head>
+<html lang="en">
+<head>
     <meta charset="utf-8" />
     <title>Real-Time Chat</title>
-    <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; display: flex; gap: 1rem; }
-      #sidebar { width: 200px; border-right: 1px solid #ddd; padding-right: 1rem; }
-      #mainContent { flex: 1; }
-      #chatBox { margin-top: 1rem; }
-      #log { white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; border-radius: 6px; max-height: 40vh; overflow:auto; }
-      #typingStatus { font-style: italic; color: #666; font-size: 0.9rem; margin-top: 0.5rem; min-height: 1.2rem; }
-      input { padding: 0.4rem; margin-right: 0.5rem; }
-      button { padding: 0.45rem 0.7rem; }
-      #newChatBtn { background-color: #ff6b6b; color: white; }
-      .room-btn { display: block; width: 100%; text-align: left; padding: 0.5rem; margin: 0.25rem 0; background: #e9ecef; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; }
-      .room-btn:hover { background: #dee2e6; }
-      .room-btn.active { background: #007bff; color: white; }
-      #roomHistory { margin-top: 1rem; }
-      .room-history-label { font-weight: bold; margin-bottom: 0.5rem; }
-      code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-    </style>
-  </head>
-  <body>
-    <div id="sidebar" style="display:none">
-      <div class="room-history-label">Previous Chats</div>
-      <div id="roomHistory"></div>
-    </div>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>Previous Chats</span>
+                    </h6>
+                    <div id="roomHistory" class="nav flex-column"></div>
+                </div>
+            </nav>
 
-    <div id="mainContent">
-      <h3>Real-Time Chat</h3>
+            <main id="mainContent" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Real-Time Chat</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button id="newChatBtn" class="btn btn-sm btn-outline-secondary">
+                            Create New Chat
+                        </button>
+                        <button id="logoutBtn" class="btn btn-sm btn-outline-secondary">Logout</button>
+                    </div>
+                </div>
 
-      <div id="switchRoomBox" style="display:none">
-        <span>Logged in as: <strong id="currentName"></strong></span><br>
-        <small style="color: #666;">💡 Tip: Use <code>/bot question</code> or <code>@ai question</code> to ask the AI assistant</small><br><br>
-        <input id="newRoom" placeholder="Room name" value="general" />
-        <button id="switchBtn">Switch Room</button>
-      </div>
+                <div id="switchRoomBox" style="display:none">
+                    <p>Logged in as: <strong id="currentName"></strong></p>
+                    <small class="text-muted">💡 Tip: Use <code>/bot question</code> or <code>@ai question</code> to ask the AI assistant</small>
+                    <div class="input-group mb-3">
+                        <label for="newRoom" class="visually-hidden">Room name</label>
+                        <input id="newRoom" type="text" class="form-control" placeholder="Room name" value="general">
+                        <button id="switchBtn" class="btn btn-primary">Switch Room</button>
+                    </div>
+                </div>
 
-      <div id="chatBox">
-        <div style="margin-bottom:0.5rem;">
-          <input id="msg" placeholder="Type message (try: /bot hello)" style="width:60%;" />
-          <button id="send">Send</button>
-          <button id="newChatBtn">Create New Chat</button>
-          <button id="logoutBtn">Logout</button>
+                <div id="chatBox">
+                    <div class="input-group mb-3">
+                        <label for="msg" class="visually-hidden">Message</label>
+                        <input id="msg" type="text" class="form-control" placeholder="Type message (try: /bot hello)">
+                        <button id="send" class="btn btn-success">Send</button>
+                    </div>
+                    <pre id="log"></pre>
+                    <div id="typingStatus"></div>
+                </div>
+            </main>
         </div>
-        <pre id="log"></pre>
-        <div id="typingStatus"></div>
-      </div>
     </div>
 
     <script>
         const token = "{{ token }}";
     </script>
     <script src="/static/script.js"></script>
-  </body>
+</body>
 </html>

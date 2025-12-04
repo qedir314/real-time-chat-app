@@ -8,20 +8,12 @@ const logEl = document.getElementById('log');
 const typingStatusEl = document.getElementById('typingStatus');
 
 function log(t, isBot = false) {
+  const messageEl = document.createElement('div');
+  messageEl.textContent = t;
   if (isBot) {
-    // Create a styled element for bot messages
-    const botMsg = document.createElement('div');
-    botMsg.style.cssText = 'background: #e3f2fd; padding: 8px; margin: 4px 0; border-left: 3px solid #2196f3; border-radius: 4px;';
-    botMsg.textContent = t;
-
-    // Append to a container if log is a pre element
-    const container = logEl.parentElement;
-    if (logEl.tagName === 'PRE') {
-      logEl.textContent += t + '\n';
-    }
-  } else {
-    logEl.textContent += t + '\n';
+    messageEl.classList.add('bot-message');
   }
+  logEl.appendChild(messageEl);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
@@ -35,7 +27,7 @@ function updateRoomHistory() {
   historyDiv.innerHTML = '';
   roomHistory.forEach(room => {
     const btn = document.createElement('button');
-    btn.className = 'room-btn' + (room === currentRoom ? ' active' : '');
+    btn.className = 'nav-link btn btn-sm' + (room === currentRoom ? ' active' : '');
     btn.textContent = room;
     btn.onclick = () => switchRoomSafely(room);
     historyDiv.appendChild(btn);
@@ -145,7 +137,7 @@ async function connect() {
   });
 
   ws.addEventListener('close', () => log('Disconnected'));
-  ws.addEventListener('error', (ev) => log('WebSocket error'));
+  ws.addEventListener('error', () => log('WebSocket error'));
 }
 
 document.getElementById('send').onclick = () => {
