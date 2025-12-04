@@ -40,19 +40,28 @@ async def signin_page(request: Request):
 
 @router.post("/signin")
 async def signin(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = users_collection.find_one({"email": form_data.username})
+    # Try to find user by email OR username
+    user = users_collection.find_one({
+        "$or": [
+            {"email": form_data.username},
+            {"username": form_data.username}
+        ]
+    })
+
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect email/username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     access_token = create_access_token(data={"sub": user["email"]})
     response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         key="access_token", value=f"Bearer {access_token}", httponly=True
     )
     return response
+
 
 @router.get("/me")
 async def me(request: Request):
