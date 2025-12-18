@@ -4,7 +4,7 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from config.database import users_collection
@@ -14,7 +14,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="signin")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="signin", auto_error=False)
 
 
 def verify_password(plain_password, hashed_password):
@@ -41,6 +41,20 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
+async def get_token(request: Request, token: Optional[str] = Depends(oauth2_scheme)):
+    if token:
+        return token
+    
+    # Check cookie if header is missing
+    cookie_token = request.cookies.get("access_token")
+    if cookie_token:
+        if cookie_token.startswith("Bearer "):
+            return cookie_token[7:]
+        return cookie_token
+    
+    return None
+
+
 async def get_user_from_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -55,7 +69,13 @@ async def get_user_from_token(token: str):
     return user
 
 
-async def get_current_active_user(token: str = Depends(oauth2_scheme)):
+async def get_current_active_user(token: str = Depends(get_token)):
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     user = await get_user_from_token(token)
     if not user:
         raise HTTPException(

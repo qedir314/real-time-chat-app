@@ -1,17 +1,15 @@
 import json
 from datetime import datetime, UTC
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Request, HTTPException
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException, Depends
 
-from auth.core import get_user_from_token
+from auth.core import get_user_from_token, get_current_active_user
 from config.database import messages_collection
 from utils.ConnectionManager import ConnectionManager
 from utils.chatbot import ai_bot
 
 router = APIRouter()
 manager = ConnectionManager()
-templates = Jinja2Templates(directory="templates")
 
 
 async def save_message(room_id: str, user: str, msg: str):
@@ -117,40 +115,22 @@ async def websocket_endpoint(
 
 
 @router.get("/rooms")
-async def get_rooms(request: Request):
-    token = request.cookies.get("access_token")
-    print(f"Token from cookies: {token}")
-
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    # Remove "Bearer " prefix if present
-    if token.startswith("Bearer "):
-        token = token[7:]
-
+async def get_rooms(current_user: dict = Depends(get_current_active_user)):
     try:
-        user = await get_user_from_token(token)
-        print(f"User from token: {user}")
+        # Get all unique room IDs from messages - synchronous operation
+        messages = list(messages_collection.find({}, {"room_id": 1}))
+        rooms = list(set(msg.get("room_id") for msg in messages if msg.get("room_id")))
 
-        if user:
-            # Get all unique room IDs from messages - synchronous operation
-            messages = list(messages_collection.find({}, {"room_id": 1}))
-            rooms = list(set(msg.get("room_id") for msg in messages if msg.get("room_id")))
+        # Ensure 'general' is always included
+        if not rooms:
+            rooms = ["general"]
+        elif "general" not in rooms:
+            rooms.insert(0, "general")
 
-            # Ensure 'general' is always included
-            if not rooms:
-                rooms = ["general"]
-            elif "general" not in rooms:
-                rooms.insert(0, "general")
-
-            print(f"Returning rooms: {rooms}")
-            return {"rooms": rooms}
-        else:
-            raise HTTPException(status_code=401, detail="User not found")
-    except HTTPException:
-        raise
+        print(f"Returning rooms for {current_user['username']}: {rooms}")
+        return {"rooms": rooms}
     except Exception as e:
         print(f"Error fetching rooms: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=500, detail="Internal server error")
