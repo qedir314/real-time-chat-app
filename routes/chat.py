@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException, Depends
 
 from auth.core import get_user_from_token, get_current_active_user
-from config.database import messages_collection
+from config.database import messages_collection, rooms_collection
 from utils.ConnectionManager import ConnectionManager
 from utils.chatbot import ai_bot
 
@@ -20,8 +20,13 @@ async def save_message(room_id: str, user: str, msg: str):
 
 
 @router.get("/history/{room_id}")
-async def get_chat_history(room_id: str):
+async def get_chat_history(room_id: str, current_user: dict = Depends(get_current_active_user)):
     """Retrieve last 50 messages from a room"""
+    # Check membership
+    room = rooms_collection.find_one({"room_id": room_id})
+    if room and current_user["_id"] not in room.get("members", []):
+         raise HTTPException(status_code=403, detail="Not a member of this room")
+
     messages = list(
         messages_collection.find({"room_id": room_id})
         .sort("timestamp", -1)
@@ -46,9 +51,36 @@ async def websocket_endpoint(
         await websocket.close(code=1008)
         return
 
+    # Check membership
+    room = rooms_collection.find_one({"room_id": room_id})
+    if room:
+         if str(user["_id"]) not in room.get("members", []):
+             print(f"User {user['username']} denied access to room {room_id}")
+             await websocket.close(code=1008)
+             return
+    else:
+        # Strict check: if room doesn't exist, close.
+        await websocket.close(code=1008)
+        return
+
     username = user["username"]
     await manager.connect(websocket, room_id)
-    history = await get_chat_history(room_id)
+    
+    # Manually fetch history to send on connect
+    messages = list(
+        messages_collection.find({"room_id": room_id})
+        .sort("timestamp", -1)
+        .limit(50)
+    )
+    history = [
+        {
+            "user": msg["user"],
+            "msg": msg["msg"],
+            "timestamp": msg["timestamp"].isoformat(),
+        }
+        for msg in reversed(messages)
+    ]
+    
     await websocket.send_json({"type": "history", "messages": history})
     await manager.broadcast_json(
         {"type": "chat", "user": "system", "msg": f"{username} joined"}, room_id
@@ -117,18 +149,21 @@ async def websocket_endpoint(
 @router.get("/rooms")
 async def get_rooms(current_user: dict = Depends(get_current_active_user)):
     try:
-        # Get all unique room IDs from messages - synchronous operation
-        messages = list(messages_collection.find({}, {"room_id": 1}))
-        rooms = list(set(msg.get("room_id") for msg in messages if msg.get("room_id")))
-
-        # Ensure 'general' is always included
-        if not rooms:
-            rooms = ["general"]
-        elif "general" not in rooms:
-            rooms.insert(0, "general")
-
-        print(f"Returning rooms for {current_user['username']}: {rooms}")
-        return {"rooms": rooms}
+        user_id = current_user["_id"]
+        cursor = rooms_collection.find({"members": user_id})
+        
+        rooms_data = []
+        for doc in cursor:
+            room_info = {
+                "room_id": doc["room_id"],
+                "name": doc["name"],
+                "owner_id": doc["owner_id"]
+            }
+            if doc["owner_id"] == user_id:
+                room_info["invite_code"] = doc.get("invite_code")
+            rooms_data.append(room_info)
+            
+        return {"rooms": rooms_data}
     except Exception as e:
         print(f"Error fetching rooms: {e}")
         import traceback
