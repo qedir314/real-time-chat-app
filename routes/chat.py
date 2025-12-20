@@ -2,6 +2,7 @@ import json
 from datetime import datetime, UTC
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException, Depends
+from starlette.concurrency import run_in_threadpool
 
 from auth.core import get_user_from_token, get_current_active_user
 from config.database import messages_collection, rooms_collection
@@ -12,7 +13,7 @@ router = APIRouter()
 manager = ConnectionManager()
 
 
-async def save_message(room_id: str, user: str, msg: str):
+def save_message(room_id: str, user: str, msg: str):
     """Save message to database"""
     messages_collection.insert_one(
         {"room_id": room_id, "user": user, "msg": msg, "timestamp": datetime.now(UTC)}
@@ -20,7 +21,7 @@ async def save_message(room_id: str, user: str, msg: str):
 
 
 @router.get("/history/{room_id}")
-async def get_chat_history(room_id: str, current_user: dict = Depends(get_current_active_user)):
+def get_chat_history(room_id: str, current_user: dict = Depends(get_current_active_user)):
     """Retrieve last 50 messages from a room"""
     # Check membership
     room = rooms_collection.find_one({"room_id": room_id})
@@ -46,13 +47,17 @@ async def get_chat_history(room_id: str, current_user: dict = Depends(get_curren
 async def websocket_endpoint(
         websocket: WebSocket, room_id: str, token: str = Query(...)
 ):
-    user = await get_user_from_token(token)
+    user = await run_in_threadpool(get_user_from_token, token)
     if not user:
         await websocket.close(code=1008)
         return
 
     # Check membership
-    room = rooms_collection.find_one({"room_id": room_id})
+    def check_membership():
+        return rooms_collection.find_one({"room_id": room_id})
+    
+    room = await run_in_threadpool(check_membership)
+    
     if room:
          if str(user["_id"]) not in room.get("members", []):
              print(f"User {user['username']} denied access to room {room_id}")
@@ -67,19 +72,22 @@ async def websocket_endpoint(
     await manager.connect(websocket, room_id)
     
     # Manually fetch history to send on connect
-    messages = list(
-        messages_collection.find({"room_id": room_id})
-        .sort("timestamp", -1)
-        .limit(50)
-    )
-    history = [
-        {
-            "user": msg["user"],
-            "msg": msg["msg"],
-            "timestamp": msg["timestamp"].isoformat(),
-        }
-        for msg in reversed(messages)
-    ]
+    def fetch_history():
+        msgs = list(
+            messages_collection.find({"room_id": room_id})
+            .sort("timestamp", -1)
+            .limit(50)
+        )
+        return [
+            {
+                "user": msg["user"],
+                "msg": msg["msg"],
+                "timestamp": msg["timestamp"].isoformat(),
+            }
+            for msg in reversed(msgs)
+        ]
+
+    history = await run_in_threadpool(fetch_history)
     
     await websocket.send_json({"type": "history", "messages": history})
     await manager.broadcast_json(
@@ -92,7 +100,7 @@ async def websocket_endpoint(
                 data = json.loads(text)
                 if data.get("type") == "chat":
                     message_text = data.get("msg", "")
-                    await save_message(room_id, username, message_text)
+                    await run_in_threadpool(save_message, room_id, username, message_text)
                     await manager.broadcast_json(
                         {"type": "chat", "user": username, "msg": message_text},
                         room_id,
@@ -120,7 +128,7 @@ async def websocket_endpoint(
                         if bot_response:
                             print(f"Broadcasting bot response to room {room_id}")
                             # Save and broadcast bot response
-                            await save_message(room_id, "AI_Bot", bot_response)
+                            await run_in_threadpool(save_message, room_id, "AI_Bot", bot_response)
                             await manager.broadcast_json(
                                 {"type": "chat", "user": "AI_Bot", "msg": bot_response},
                                 room_id,
@@ -147,7 +155,7 @@ async def websocket_endpoint(
 
 
 @router.get("/rooms")
-async def get_rooms(current_user: dict = Depends(get_current_active_user)):
+def get_rooms(current_user: dict = Depends(get_current_active_user)):
     try:
         user_id = current_user["_id"]
         cursor = rooms_collection.find({"members": user_id})

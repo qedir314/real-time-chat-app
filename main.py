@@ -2,12 +2,17 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from anyio import to_thread
 
 from routes import auth, chat, rooms
 from routes.chat import manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # System Tuning: Increase thread pool for blocking tasks (Bcrypt/Mongo)
+    limiter = to_thread.current_default_thread_limiter()
+    limiter.total_tokens = 100
+    
     # Startup: Initialize Redis
     print("🚀 Starting up...")
     await manager.initialize_redis()

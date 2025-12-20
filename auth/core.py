@@ -45,7 +45,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_token(request: Request, token: Optional[str] = Depends(oauth2_scheme)):
+def get_token(request: Request, token: Optional[str] = Depends(oauth2_scheme)):
     if token:
         return token
     
@@ -59,7 +59,7 @@ async def get_token(request: Request, token: Optional[str] = Depends(oauth2_sche
     return None
 
 
-async def get_user_from_token(token: str):
+def get_user_from_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -73,14 +73,14 @@ async def get_user_from_token(token: str):
     return user
 
 
-async def get_current_active_user(token: str = Depends(get_token)):
+def get_current_active_user(token: str = Depends(get_token)):
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = await get_user_from_token(token)
+    user = get_user_from_token(token)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

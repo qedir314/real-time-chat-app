@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/signup")
-async def signup(user: User):
+def signup(user: User):
     hashed_password = get_password_hash(user.password)
     user_dict = user.model_dump()
     user_dict.pop("password")  # Remove plain password
@@ -27,7 +27,7 @@ async def signup(user: User):
 
 
 @router.post("/signin")
-async def signin(form_data: OAuth2PasswordRequestForm = Depends()):
+def signin(form_data: OAuth2PasswordRequestForm = Depends()):
     # Try to find user by email OR username
     user = users_collection.find_one({
         "$or": [
