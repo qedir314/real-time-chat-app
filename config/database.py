@@ -13,9 +13,14 @@ messages_collection = db["messages"]
 users_collection = db["users"]
 rooms_collection = db["rooms"]
 
+# Drop deprecated email index if it exists
+try:
+    users_collection.drop_index("email_1")
+except Exception:
+    pass
+
 # Create index for efficient queries
 messages_collection.create_index([("room_id", 1), ("timestamp", -1)])
-users_collection.create_index([("email", 1)], unique=True)
 users_collection.create_index([("username", 1)], unique=True)
 rooms_collection.create_index([("room_id", 1)], unique=True)
 rooms_collection.create_index([("invite_code", 1)], unique=True)

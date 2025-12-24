@@ -62,12 +62,12 @@ def get_token(request: Request, token: Optional[str] = Depends(oauth2_scheme)):
 def get_user_from_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        username: str = payload.get("sub")
+        if username is None:
             return None
     except JWTError:
         return None
-    user = users_collection.find_one({"email": email})
+    user = users_collection.find_one({"username": username})
     if user:
         user["_id"] = str(user["_id"])
     return user

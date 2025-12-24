@@ -21,29 +21,24 @@ def signup(user: User):
     except DuplicateKeyError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email or Username already registered",
+            detail="Username already registered",
         )
     return {"message": "User created successfully"}
 
 
 @router.post("/signin")
 def signin(form_data: OAuth2PasswordRequestForm = Depends()):
-    # Try to find user by email OR username
-    user = users_collection.find_one({
-        "$or": [
-            {"email": form_data.username},
-            {"username": form_data.username}
-        ]
-    })
+    # Try to find user by username
+    user = users_collection.find_one({"username": form_data.username})
 
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email/username or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": user["email"]})
+    access_token = create_access_token(data={"sub": user["username"]})
     
     # Return JSON for the React frontend, but also set cookie for potential hybrid use
     content = {

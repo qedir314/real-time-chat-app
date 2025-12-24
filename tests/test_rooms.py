@@ -16,16 +16,15 @@ def cleanup():
 
 def test_room_flow():
     # 1. Signup
-    response = client.post("/signup", json={
+    response = client.post("/api/signup", json={
         "username": "testuser_rooms",
-        "email": "testrooms@example.com",
         "password": "password123"
     })
     assert response.status_code == 200
 
     # 2. Login
-    response = client.post("/signin", data={
-        "username": "testrooms@example.com",
+    response = client.post("/api/signin", data={
+        "username": "testuser_rooms",
         "password": "password123"
     })
     assert response.status_code == 200
@@ -33,14 +32,14 @@ def test_room_flow():
     headers = {"Authorization": f"Bearer {token}"}
 
     # 3. Create Room
-    response = client.post("/rooms/create", json={"name": "Test Room"}, headers=headers)
+    response = client.post("/api/rooms/create", json={"name": "Test Room"}, headers=headers)
     assert response.status_code == 200
     room_data = response.json()
     room_id = room_data["room_id"]
     assert room_data["name"] == "Test Room"
     
     # 4. Get Rooms
-    response = client.get("/rooms", headers=headers)
+    response = client.get("/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()["rooms"]
     assert len(rooms) >= 1
@@ -49,7 +48,7 @@ def test_room_flow():
     # 5. Connect WebSocket
     # Note: TestClient.websocket_connect might not support params directly in path easily if not carefully constructed?
     # It usually works.
-    with client.websocket_connect(f"/ws/{room_id}?token={token}") as websocket:
+    with client.websocket_connect(f"/api/ws/{room_id}?token={token}") as websocket:
         data = websocket.receive_json()
         assert data["type"] == "history"
         
