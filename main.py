@@ -1,3 +1,4 @@
+import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,22 +24,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Get CORS origins from environment variable
+origins_env = os.getenv("CORS_ORIGINS", "*")
+origins = origins_env.split(",") if origins_env != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost", "http://127.0.0.1"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(chat.router)
-app.include_router(rooms.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
+app.include_router(rooms.router, prefix="/api")
 
 @app.get("/")
 async def read_root():
-    return {"status": "API is running", "frontend": "http://localhost:5173"}
+    return {"status": "API is running"}
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run("main:app", host=host, port=8000, reload=True)

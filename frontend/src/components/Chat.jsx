@@ -55,7 +55,7 @@ const Chat = () => {
     const token = localStorage.getItem('token');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/${currentRoom.room_id}?token=${token}`;
+    const wsUrl = `${protocol}//${host}/api/ws/${currentRoom.room_id}?token=${token}`;
 
     if (socketRef.current) {
         socketRef.current.close();

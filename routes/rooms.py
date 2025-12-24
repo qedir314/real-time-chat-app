@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from models.room import Room, RoomCreate, RoomJoin
-from config.database import rooms_collection, users_collection
+from config.database import rooms_collection
 from auth.core import get_current_active_user, get_password_hash, verify_password
+import pydantic
 import uuid
 from datetime import datetime, UTC
 
 router = APIRouter(tags=["rooms"])
+
+class RoomUpdate(pydantic.BaseModel):
+    name: str
 
 @router.post("/rooms/create", response_model=Room)
 async def create_room(room_in: RoomCreate, current_user: dict = Depends(get_current_active_user)):
