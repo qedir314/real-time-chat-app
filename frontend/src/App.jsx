@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import Chat from './components/Chat';
+import AdminPanel from './components/AdminPanel';
 import './App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -18,13 +19,21 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/signin" element={!user ? <SignIn /> : <Navigate to="/" />} />
-      <Route path="/signup" element={!user ? <SignUp /> : <Navigate to="/" />} />
+      <Route path="/signin" element={!user ? <SignIn /> : <Navigate to={user.is_admin ? "/admin" : "/"} />} />
+      <Route path="/signup" element={!user ? <SignUp /> : <Navigate to={user.is_admin ? "/admin" : "/"} />} />
       <Route
         path="/"
         element={
           <PrivateRoute>
             <Chat />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute>
+            <AdminPanel />
           </PrivateRoute>
         }
       />

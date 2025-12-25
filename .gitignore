@@ -4,6 +4,7 @@
 !.env.example
 .env.example
 *.local
+docs/
 
 # --- Python ---
 __pycache__/
@@ -72,6 +73,7 @@ lerna-debug.log*
 mongo_data/
 redis_data/
 # Ignore certbot generated files
+certbot/
 certbot/conf/
 certbot/www/
 .DS_Store

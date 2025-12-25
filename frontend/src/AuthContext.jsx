@@ -31,11 +31,15 @@ export const AuthProvider = ({ children }) => {
     formData.append('password', password);
 
     const response = await api.post('/signin', formData);
-    const { access_token, username: loggedInUsername } = response.data;
+    const { access_token } = response.data;
     
     localStorage.setItem('token', access_token);
-    setUser({ username: loggedInUsername });
-    return response.data;
+    
+    // Fetch full user details including is_admin status
+    const meResponse = await api.get('/me');
+    setUser(meResponse.data);
+    
+    return meResponse.data;
   };
 
   const logout = () => {

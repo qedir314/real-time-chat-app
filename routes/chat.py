@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPExcept
 from starlette.concurrency import run_in_threadpool
 
 from auth.core import get_user_from_token, get_current_active_user
-from config.database import messages_collection, rooms_collection
+from config.database import messages_collection, rooms_collection, users_collection
 from utils.ConnectionManager import ConnectionManager
 from utils.chatbot import ai_bot
 
@@ -69,6 +69,15 @@ async def websocket_endpoint(
         return
 
     username = user["username"]
+    
+    # Mark user as active
+    await run_in_threadpool(
+        lambda: users_collection.update_one(
+            {"username": username}, 
+            {"$set": {"is_active": True}}
+        )
+    )
+
     await manager.connect(websocket, room_id)
     
     # Manually fetch history to send on connect
@@ -148,6 +157,13 @@ async def websocket_endpoint(
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:
+        # Mark user as inactive
+        await run_in_threadpool(
+            lambda: users_collection.update_one(
+                {"username": username}, 
+                {"$set": {"is_active": False, "last_active": datetime.now(UTC)}}
+            )
+        )
         await manager.disconnect(websocket, room_id)
         await manager.broadcast_json(
             {"type": "chat", "user": "system", "msg": f"{username} left"}, room_id

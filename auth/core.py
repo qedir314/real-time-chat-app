@@ -70,6 +70,9 @@ def get_user_from_token(token: str):
     user = users_collection.find_one({"username": username})
     if user:
         user["_id"] = str(user["_id"])
+        # Check if user is admin
+        admin_username = os.getenv("ADMIN_USERNAME")
+        user["is_admin"] = admin_username and user["username"] == admin_username
     return user
 
 

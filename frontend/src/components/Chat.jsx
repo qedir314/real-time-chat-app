@@ -2,8 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 import api from '../api';
 
+import { useNavigate } from 'react-router-dom';
+
 const Chat = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
   const [messages, setMessages] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [currentRoom, setCurrentRoom] = useState(null);
@@ -149,6 +153,15 @@ const Chat = () => {
         <h1>Real-Time Chat</h1>
         <div className="user-info">
           <span>{user.username}</span>
+          {user.is_admin && (
+            <button 
+              className="logout-btn" 
+              onClick={() => navigate('/admin')}
+              style={{marginRight: '10px', borderColor: '#007bff', color: '#007bff'}}
+            >
+              Admin Panel
+            </button>
+          )}
           <button className="logout-btn" onClick={logout}>Logout</button>
         </div>
       </header>
