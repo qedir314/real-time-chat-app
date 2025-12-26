@@ -56,3 +56,11 @@ def signin(form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get("/me")
 async def me(current_user: dict = Depends(get_current_active_user)):
     return current_user
+
+
+@router.delete("/delete_account")
+async def delete_account(current_user: dict = Depends(get_current_active_user)):
+    result = users_collection.delete_one({"username": current_user["username"]})
+    if result.deleted_count == 1:
+        return {"message": "Account deleted successfully"}
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete account")

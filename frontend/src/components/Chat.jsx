@@ -152,7 +152,13 @@ const Chat = () => {
       <header>
         <h1>Real-Time Chat</h1>
         <div className="user-info">
-          <span>{user.username}</span>
+          <span 
+            onClick={() => navigate('/profile')} 
+            style={{cursor: 'pointer', textDecoration: 'underline'}}
+            title="View Profile"
+          >
+            {user.username}
+          </span>
           {user.is_admin && (
             <button 
               className="logout-btn" 

@@ -5,6 +5,7 @@ import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import Chat from './components/Chat';
 import AdminPanel from './components/AdminPanel';
+import UserProfile from './components/UserProfile';
 import './App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -26,6 +27,14 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             <Chat />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <UserProfile />
           </PrivateRoute>
         }
       />
