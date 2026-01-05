@@ -99,24 +99,33 @@ async def websocket_endpoint(
                 "user": msg["user"],
                 "msg": msg["msg"],
                 "timestamp": msg["timestamp"].isoformat(),
+                "file_id": msg.get("file_id"),  # Include file_id!
             }
             for msg in reversed(msgs)
         ]
 
     history = await run_in_threadpool(fetch_history)
     
-    # Enrich history with file info
-    for msg in history:
-        if msg.get("file_id"):
-            file_info = await run_in_threadpool(
-                lambda fid=msg["file_id"]: files_collection.find_one({"file_id": fid})
-            )
-            if file_info:
+    # Batch fetch all file info for efficiency and reliability
+    file_ids = [msg["file_id"] for msg in history if msg.get("file_id")]
+    
+    if file_ids:
+        def fetch_file_records():
+            return list(files_collection.find({"file_id": {"$in": file_ids}}))
+        
+        file_records = await run_in_threadpool(fetch_file_records)
+        file_map = {f["file_id"]: f for f in file_records}
+        
+        # Enrich messages with file info
+        for msg in history:
+            fid = msg.get("file_id")
+            if fid and fid in file_map:
+                f = file_map[fid]
                 msg["file_info"] = {
-                    "original_name": file_info["original_name"],
-                    "content_type": file_info["content_type"],
-                    "size": file_info["size"],
-                    "url": f"/api/files/{file_info['file_id']}"
+                    "original_name": f["original_name"],
+                    "content_type": f["content_type"],
+                    "size": f["size"],
+                    "url": f"/api/files/{f['file_id']}"
                 }
     
     await websocket.send_json({"type": "history", "messages": history})
