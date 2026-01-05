@@ -13,8 +13,8 @@ from datetime import datetime, UTC
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-# Configuration
-UPLOAD_DIR = Path("/app/uploads")
+# Configuration - use environment variable or default to local path
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads"))
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {
     # Images

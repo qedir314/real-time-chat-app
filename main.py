@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting up...")
     
     # Create uploads directory
-    uploads_dir = Path("/app/uploads")
+    uploads_dir = Path(os.getenv("UPLOAD_DIR", "./uploads"))
     uploads_dir.mkdir(parents=True, exist_ok=True)
-    print(f"📁 Uploads directory: {uploads_dir}")
+    print(f"📁 Uploads directory: {uploads_dir.absolute()}")
     
     await manager.initialize_redis()
 
