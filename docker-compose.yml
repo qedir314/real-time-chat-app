@@ -45,6 +45,8 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       REDIS_URL: redis://redis:6379
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - mongodb
       - redis
@@ -73,3 +75,4 @@ services:
 volumes:
   mongo_data:
   redis_data:
+  uploads_data:

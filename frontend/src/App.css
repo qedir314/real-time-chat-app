@@ -261,6 +261,98 @@ header h1 {
   background-color: #0056b3;
 }
 
+/* Attachment Button */
+.attach-btn {
+  padding: 10px 15px;
+  background-color: #f8f9fa;
+  color: #495057;
+  border: 1px solid #ced4da;
+  border-radius: 24px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.attach-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* File Attachment Display */
+.file-attachment {
+  margin-top: 8px;
+  display: block;
+}
+
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.image-preview img {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  object-fit: cover;
+}
+
+.image-preview img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-preview .file-name {
+  font-size: 0.75em;
+  color: #6c757d;
+  word-break: break-all;
+}
+
+.file-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  color: #495057;
+  text-decoration: none;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.file-download:hover {
+  background-color: #e9ecef;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+/* File message styling for own messages */
+.message.own .file-download {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.message.own .file-download:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.message.own .image-preview .file-name {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* Sidebar Buttons */
 .sidebar-buttons {
   margin-bottom: 20px;

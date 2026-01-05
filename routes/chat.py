@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPExcept
 from starlette.concurrency import run_in_threadpool
 
 from auth.core import get_user_from_token, get_current_active_user
-from config.database import messages_collection, rooms_collection, users_collection
+from config.database import messages_collection, rooms_collection, users_collection, files_collection
 from utils.ConnectionManager import ConnectionManager
 from utils.chatbot import ai_bot
 
@@ -13,11 +13,17 @@ router = APIRouter()
 manager = ConnectionManager()
 
 
-def save_message(room_id: str, user: str, msg: str):
+def save_message(room_id: str, user: str, msg: str, file_id: str = None):
     """Save message to database"""
-    messages_collection.insert_one(
-        {"room_id": room_id, "user": user, "msg": msg, "timestamp": datetime.now(UTC)}
-    )
+    message_data = {
+        "room_id": room_id, 
+        "user": user, 
+        "msg": msg, 
+        "timestamp": datetime.now(UTC)
+    }
+    if file_id:
+        message_data["file_id"] = file_id
+    messages_collection.insert_one(message_data)
 
 
 @router.get("/history/{room_id}")
@@ -38,6 +44,7 @@ def get_chat_history(room_id: str, current_user: dict = Depends(get_current_acti
             "user": msg["user"],
             "msg": msg["msg"],
             "timestamp": msg["timestamp"].isoformat(),
+            "file_id": msg.get("file_id"),
         }
         for msg in reversed(messages)
     ]
@@ -98,6 +105,20 @@ async def websocket_endpoint(
 
     history = await run_in_threadpool(fetch_history)
     
+    # Enrich history with file info
+    for msg in history:
+        if msg.get("file_id"):
+            file_info = await run_in_threadpool(
+                lambda fid=msg["file_id"]: files_collection.find_one({"file_id": fid})
+            )
+            if file_info:
+                msg["file_info"] = {
+                    "original_name": file_info["original_name"],
+                    "content_type": file_info["content_type"],
+                    "size": file_info["size"],
+                    "url": f"/api/files/{file_info['file_id']}"
+                }
+    
     await websocket.send_json({"type": "history", "messages": history})
     await manager.broadcast_json(
         {"type": "chat", "user": "system", "msg": f"{username} joined"}, room_id
@@ -109,11 +130,31 @@ async def websocket_endpoint(
                 data = json.loads(text)
                 if data.get("type") == "chat":
                     message_text = data.get("msg", "")
-                    await run_in_threadpool(save_message, room_id, username, message_text)
-                    await manager.broadcast_json(
-                        {"type": "chat", "user": username, "msg": message_text},
-                        room_id,
-                    )
+                    file_id = data.get("file_id")
+                    
+                    await run_in_threadpool(save_message, room_id, username, message_text, file_id)
+                    
+                    broadcast_data = {
+                        "type": "chat", 
+                        "user": username, 
+                        "msg": message_text
+                    }
+                    
+                    # Include file info if present
+                    if file_id:
+                        file_info = await run_in_threadpool(
+                            lambda: files_collection.find_one({"file_id": file_id})
+                        )
+                        if file_info:
+                            broadcast_data["file_id"] = file_id
+                            broadcast_data["file_info"] = {
+                                "original_name": file_info["original_name"],
+                                "content_type": file_info["content_type"],
+                                "size": file_info["size"],
+                                "url": f"/api/files/{file_info['file_id']}"
+                            }
+                    
+                    await manager.broadcast_json(broadcast_data, room_id)
 
                     # Check if AI bot should respond
                     if ai_bot.should_respond(message_text):

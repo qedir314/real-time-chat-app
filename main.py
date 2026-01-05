@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from anyio import to_thread
 
-from routes import auth, chat, rooms, admin
+from routes import auth, chat, rooms, admin, files
+from pathlib import Path
 from routes.chat import manager
 from auth.core import get_password_hash
 from config.database import users_collection
@@ -19,6 +20,12 @@ async def lifespan(app: FastAPI):
     
     # Startup: Initialize Redis
     print("🚀 Starting up...")
+    
+    # Create uploads directory
+    uploads_dir = Path("/app/uploads")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    print(f"📁 Uploads directory: {uploads_dir}")
+    
     await manager.initialize_redis()
 
     # Create Super User if configured
@@ -64,6 +71,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(rooms.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
 
 @app.get("/")
 async def read_root():

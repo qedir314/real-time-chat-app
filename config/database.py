@@ -24,3 +24,9 @@ messages_collection.create_index([("room_id", 1), ("timestamp", -1)])
 users_collection.create_index([("username", 1)], unique=True)
 rooms_collection.create_index([("room_id", 1)], unique=True)
 rooms_collection.create_index([("invite_code", 1)], unique=True)
+
+# Files collection for upload metadata
+files_collection = db["files"]
+files_collection.create_index([("file_id", 1)], unique=True)
+files_collection.create_index([("room_id", 1)])
+
